@@ -4,6 +4,8 @@
 
 https://sarwar-shafee.github.io/Pixel-Walker/
 
+---
+
 ![Live Demo](https://raw.githubusercontent.com/sArwar-sHafee/Pixel-Walker/main/demo.jpeg)
 
 ## 🎮 Game Description
