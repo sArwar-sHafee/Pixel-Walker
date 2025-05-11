@@ -1,5 +1,11 @@
 # Pixel Walker: Night Adventure v2
 
+## 🌌 Live Demo
+
+![Pixel Walker: Night Adventure](https://sarwar-shafee.github.io/Pixel-Walker/)
+
+[![Live Demo](https://sarwar-shafee.github.io/Pixel-Walker/assets/images/demo.png)](https://github.com/sArwar-sHafee/Pixel-Walker/blob/main/demo.jpeg)
+
 ## 🎮 Game Description
 
 Pixel Walker: Night Adventure v2 is a side-scrolling platformer game set against a mystical night-time backdrop. Players control a pixelated character who must navigate a treacherous world filled with various obstacles. The goal is to run as far as possible, jumping over spikes, avoiding hungry Eaters, timing leaps across permanent gaps and onto tricky blinking platforms. The world scrolls dynamically as the player moves forward.
