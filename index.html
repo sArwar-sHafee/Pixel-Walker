@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Walker - Night Adventure v2</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #1a1a2e; /* Darker page background */
+            font-family: 'Press Start 2P', cursive;
+            color: #e0e0e0; /* Lighter text for dark theme */
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            border: 3px solid #9fa8da; /* Lighter border for contrast */
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            background-color: #2c2c54; /* Darker game area background */
+            box-shadow: 0 0 25px rgba(159, 168, 218, 0.4);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #controls, #info {
+            margin-top: 20px;
+            text-align: center;
+            padding: 10px;
+            background-color: rgba(0,0,0,0.4);
+            border-radius: 8px;
+        }
+
+        #controls button {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #7e57c2; /* Purpleish buttons */
+            color: white;
+            border: 2px solid #5e35b1;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px #4a2382;
+            transition: all 0.1s ease;
+        }
+
+        #controls button:active {
+            box-shadow: 0 2px #4a2382;
+            transform: translateY(2px);
+        }
+
+        #controls button:hover {
+            background-color: #5e35b1;
+        }
+
+        #messageBox {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(20, 20, 40, 0.9); /* Darker message box */
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 100;
+            border: 3px solid #9fa8da;
+            box-shadow: 0 0 25px rgba(159, 168, 218, 0.6);
+            display: none; /* Initially hidden */
+            flex-direction: column; /* Ensure button is below text */
+            align-items: center;
+        }
+
+        #messageBox h2 {
+            margin-top: 0;
+            color: #ff5252; /* Brighter Red for Game Over */
+        }
+        #messageBox p {
+            margin-bottom: 20px;
+        }
+
+        #restartButton {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #ffcc80; /* Lighter orange */
+            color: #333;
+            border: 2px solid #ffa726;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px #fb8c00;
+            transition: all 0.1s ease;
+            font-size: 16px;
+        }
+
+        #restartButton:active {
+            box-shadow: 0 2px #fb8c00;
+            transform: translateY(2px);
+        }
+
+        #restartButton:hover {
+            background-color: #ffa726;
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            color: #fff;
+            text-shadow: 2px 2px #1a1a2e; /* Shadow matching dark bg */
+        }
+
+        #instructions {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #bdbdbd; /* Slightly dimmer instructions */
+        }
+         #instructions p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pixel Walker: Night Adventure v2</h1>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="score">Score: 0</div>
+        <div id="messageBox">
+            <h2 id="messageTitle">Game Over!</h2>
+            <p id="messageText">Your score: 0</p>
+            <button id="restartButton">Restart Game</button>
+        </div>
+    </div>
+    <div id="controls">
+        <button id="leftButton">Left</button>
+        <button id="jumpButton">Jump</button>
+        <button id="rightButton">Right</button>
+    </div>
+    <div id="info">
+        <p>Use Arrow Keys or On-Screen Buttons</p>
+    </div>
+     <div id="instructions">
+        <p>Left Arrow / A: Move Left</p>
+        <p>Right Arrow / D: Move Right</p>
+        <p>Up Arrow / W / Space: Jump</p>
+        <p>Avoid spikes, eaters, blinking ground and don't fall into gaps!</p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameContainer = document.getElementById('gameContainer');
+
+        const scoreDisplay = document.getElementById('score');
+        const messageBox = document.getElementById('messageBox');
+        const messageTitle = document.getElementById('messageTitle');
+        const messageText = document.getElementById('messageText');
+        const restartButton = document.getElementById('restartButton');
+
+        // Game variables
+        let player;
+        let obstacles = []; 
+        let score = 0;
+        let gameOver = false;
+        let worldOffsetX = 0; 
+
+        const gravity = 0.8;
+        const jumpForce = 15;
+        const playerSpeed = 5; 
+
+        // Player properties
+        const playerWidth = 40;
+        const playerHeight = 70;
+        const playerCharacterColor = '#f0e68c';
+
+        // Obstacle properties
+        const spikeObstacleWidth = 30;
+        const spikeObstacleHeight = 30;
+        const gapWidth = 110; 
+        const spikeColor = '#ff4500';
+        const groundColor = '#4a3b4f';
+        const groundHeight = 50;
+
+        // Eater properties
+        const eaterRadius = 18; 
+        const eaterColor = '#ffd700'; 
+        const eaterMoveSpeed = 1.5;
+        const eaterMovementRange = 150; 
+
+        // Blinking Ground properties
+        const blinkingGroundBaseWidth = 300; // INCREASED: Base width for blinking platforms (was 100)
+        const blinkingGroundRandomWidth = 120; // INCREASED: Additional random width (was 40)
+
+        // Spawning logic
+        const minObstacleSpawnDistance = 350; 
+        const maxObstacleAdditionalDistance = 250; 
+        const spawnLookahead = canvas ? canvas.width * 1.2 : 800 * 1.2; 
+        let furthestObstacleWorldX = 0; 
+
+        function resizeCanvas() {
+            const containerWidth = Math.min(window.innerWidth * 0.9, 800);
+            const containerHeight = Math.min(window.innerHeight * 0.65, 450);
+
+            gameContainer.style.width = `${containerWidth}px`;
+            gameContainer.style.height = `${containerHeight}px`;
+
+            canvas.width = containerWidth;
+            canvas.height = containerHeight;
+
+            if (player && !gameOver) {
+                player.y = canvas.height - groundHeight - player.height;
+                 if (player.y + player.height > canvas.height - groundHeight) {
+                    player.y = canvas.height - groundHeight - player.height;
+                }
+                obstacles.forEach(obs => {
+                    if (obs.type === 'eater') {
+                        obs.y = canvas.height - groundHeight - obs.radius;
+                    } else if (obs.type === 'spike') {
+                        obs.y = canvas.height - groundHeight - obs.height;
+                    } else if (obs.type === 'gap' || obs.type === 'blinkingGround') { 
+                        obs.y = canvas.height - groundHeight;
+                    }
+                });
+            } else if (!player && !gameOver) { 
+                 initGame();
+            }
+        }
+
+        class Player {
+            constructor(worldX_init, y_init, width, height, color) {
+                this.worldX = worldX_init; 
+                this.y = y_init;
+                this.width = width;
+                this.height = height;
+                this.color = color;
+                this.velocityX = 0; 
+                this.velocityY = 0;
+                this.isJumping = false;
+                this.onGround = true;
+                this.isActuallyMoving = false;
+                this.legPhase = 0;
+                this.legAnimCounter = 0;
+                this.legAnimSpeed = 6;
+                this.armPhase = 0;
+            }
+
+            draw(currentWorldOffsetX) {
+                const screenX = this.worldX - currentWorldOffsetX; 
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+
+                const headRadius = this.height * 0.15;
+                const headX = screenX + this.width / 2;
+                const headY = this.y + headRadius;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                const bodyHeight = this.height * 0.4;
+                const bodyWidth = this.width * 0.6;
+                const bodyX = screenX + (this.width - bodyWidth) / 2;
+                const bodyY = headY + headRadius;
+                ctx.fillStyle = this.color;
+                ctx.fillRect(bodyX, bodyY, bodyWidth, bodyHeight);
+                ctx.strokeRect(bodyX, bodyY, bodyWidth, bodyHeight);
+
+                const armLength = this.height * 0.25;
+                const armSwingAngle = this.isActuallyMoving ? (this.armPhase === 0 ? Math.PI / 7 : -Math.PI / 7) : Math.PI / 10;
+                
+                const leftArmStartX = bodyX + bodyWidth * 0.1;
+                const leftArmStartY = bodyY + bodyHeight * 0.15;
+                const leftArmEndX = leftArmStartX - Math.cos(armSwingAngle) * armLength;
+                const leftArmEndY = leftArmStartY + Math.sin(armSwingAngle) * armLength;
+                ctx.beginPath();
+                ctx.moveTo(leftArmStartX, leftArmStartY);
+                ctx.lineTo(leftArmEndX, leftArmEndY);
+                ctx.stroke();
+
+                const rightArmStartX = bodyX + bodyWidth * 0.9;
+                const rightArmStartY = bodyY + bodyHeight * 0.15;
+                const rightArmEndX = rightArmStartX + Math.cos(armSwingAngle) * armLength;
+                const rightArmEndY = rightArmStartY + Math.sin(armSwingAngle) * armLength;
+                ctx.beginPath();
+                ctx.moveTo(rightArmStartX, rightArmStartY);
+                ctx.lineTo(rightArmEndX, rightArmEndY);
+                ctx.stroke();
+
+                const legLength = this.height * 0.35;
+                const legStartY = bodyY + bodyHeight;
+                const legSwing = this.isActuallyMoving ? (this.legPhase === 0 ? Math.PI / 5 : -Math.PI / 5) : 0;
+
+                const leftLegStartX = bodyX + bodyWidth * 0.25;
+                const leftLegEndX = leftLegStartX + Math.sin(legSwing) * legLength;
+                const leftLegEndY = legStartY + Math.cos(legSwing) * legLength * 0.8;
+                ctx.beginPath();
+                ctx.moveTo(leftLegStartX, legStartY);
+                ctx.lineTo(leftLegEndX, leftLegEndY);
+                ctx.stroke();
+
+                const rightLegStartX = bodyX + bodyWidth * 0.75;
+                const rightLegEndX = rightLegStartX + Math.sin(-legSwing) * legLength;
+                const rightLegEndY = legStartY + Math.cos(-legSwing) * legLength * 0.8;
+                ctx.beginPath();
+                ctx.moveTo(rightLegStartX, legStartY);
+                ctx.lineTo(rightLegEndX, rightLegEndY);
+                ctx.stroke();
+            }
+
+            update() {
+                this.isActuallyMoving = this.velocityX !== 0 || this.isJumping;
+
+                if (this.isActuallyMoving) {
+                    this.legAnimCounter++;
+                    if (this.legAnimCounter >= this.legAnimSpeed) {
+                        this.legAnimCounter = 0;
+                        this.legPhase = 1 - this.legPhase;
+                        this.armPhase = 1 - this.armPhase;
+                    }
+                } else {
+                    this.legAnimCounter = 0;
+                    this.legPhase = 0;
+                    this.armPhase = 0;
+                }
+
+                this.worldX += this.velocityX; 
+                this.velocityY += gravity;
+                this.y += this.velocityY;
+                this.onGround = false;
+
+                if (this.y + this.height >= canvas.height - groundHeight) {
+                    this.y = canvas.height - groundHeight - this.height;
+                    this.velocityY = 0;
+                    this.isJumping = false;
+                    this.onGround = true;
+                }
+                if (this.worldX < 0) {
+                    this.worldX = 0;
+                }
+            }
+
+            jump() {
+                if (this.onGround && !this.isJumping) {
+                    this.velocityY = -jumpForce;
+                    this.isJumping = true;
+                    this.onGround = false;
+                }
+            }
+        }
+
+        class SpikeObstacle {
+            constructor(worldX) {
+                this.worldX = worldX; 
+                this.type = 'spike';
+                this.width = spikeObstacleWidth;
+                this.height = spikeObstacleHeight;
+                this.y = canvas.height - groundHeight - this.height;
+                this.color = spikeColor;
+                this.passed = false; 
+            }
+
+            draw(currentWorldOffsetX) {
+                const screenX = this.worldX - currentWorldOffsetX;
+                if (screenX + this.width < 0 || screenX > canvas.width) return;
+
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.beginPath();
+                ctx.moveTo(screenX, this.y + this.height);
+                ctx.lineTo(screenX + this.width / 2, this.y);
+                ctx.lineTo(screenX + this.width, this.y + this.height);
+                ctx.closePath();
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class GapObstacle {
+            constructor(worldX) {
+                this.worldX = worldX;
+                this.type = 'gap';
+                this.width = gapWidth;
+                this.height = groundHeight; 
+                this.y = canvas.height - groundHeight; 
+                this.passed = false;
+            }
+            draw(currentWorldOffsetX) { /* Gaps are absences of ground, drawn by drawDynamicGround */ }
+        }
+
+        class EaterObstacle {
+            constructor(worldX_center) {
+                this.worldX = worldX_center; 
+                this.radius = eaterRadius; 
+                this.y = canvas.height - groundHeight - this.radius; 
+                this.color = eaterColor;
+                this.type = 'eater';
+                this.mouthPhase = Math.random() * Math.PI * 2; 
+                this.mouthAnimSpeed = 0.08;
+                this.movementStartWorldX = worldX_center - eaterMovementRange / 2;
+                this.movementEndWorldX = worldX_center + eaterMovementRange / 2;
+                this.currentSpeed = eaterMoveSpeed * (Math.random() < 0.5 ? 1 : -1); 
+                this.passed = false;
+                this.width = this.radius * 2; 
+            }
+
+            update() {
+                this.worldX += this.currentSpeed;
+                if (this.worldX + this.radius > this.movementEndWorldX && this.currentSpeed > 0) {
+                    this.worldX = this.movementEndWorldX - this.radius;
+                    this.currentSpeed *= -1;
+                    this.mouthPhase = 0; 
+                } else if (this.worldX - this.radius < this.movementStartWorldX && this.currentSpeed < 0) {
+                    this.worldX = this.movementStartWorldX + this.radius;
+                    this.currentSpeed *= -1;
+                    this.mouthPhase = 0; 
+                }
+                this.mouthPhase += this.mouthAnimSpeed;
+            }
+
+            draw(currentWorldOffsetX) {
+                const screenX = this.worldX - currentWorldOffsetX;
+                if (screenX + this.radius < -this.radius || screenX - this.radius > canvas.width) return; // Culling check
+
+                ctx.fillStyle = this.color;
+                const mouthOpenRatio = (Math.sin(this.mouthPhase) + 1) / 2; 
+                const mouthAngleSweep = (Math.PI / 12) + mouthOpenRatio * (Math.PI / 3.5); // Half of the total mouth opening
+
+                ctx.beginPath();
+                if (this.currentSpeed >= 0) { // Moving right or stationary (mouth faces right)
+                    // Body is from mouthAngleSweep clockwise to 2*PI - mouthAngleSweep
+                    ctx.arc(screenX, this.y, this.radius, mouthAngleSweep, Math.PI * 2 - mouthAngleSweep);
+                } else { // Moving left (mouth faces left)
+                    // Body is from PI + mouthAngleSweep clockwise to PI - mouthAngleSweep
+                    // This makes the opening face left.
+                    ctx.arc(screenX, this.y, this.radius, Math.PI + mouthAngleSweep, Math.PI - mouthAngleSweep);
+                }
+                ctx.lineTo(screenX, this.y); 
+                ctx.closePath();
+                ctx.fill();
+
+                // Eye that looks in the direction of movement
+                ctx.fillStyle = '#333'; 
+                const eyeDirectionFactor = (this.currentSpeed === 0) ? 1 : Math.sign(this.currentSpeed); 
+                const eyeOffsetX = this.radius * 0.35 * eyeDirectionFactor;
+                ctx.beginPath(); // Start a new path for the eye
+                ctx.arc(screenX + eyeOffsetX, this.y - this.radius * 0.4, this.radius * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        class BlinkingGroundPlatform {
+            constructor(worldX, width) {
+                this.worldX = worldX;
+                this.width = width; // Width is now larger due to changed constants
+                this.height = groundHeight;
+                this.y = canvas.height - groundHeight;
+                this.type = 'blinkingGround';
+                this.isSolid = Math.random() > 0.3; 
+                this.blinkTimer = Math.floor(Math.random() * 60); 
+                this.blinkDurationSolid = 100; 
+                this.blinkDurationGap = 70;   
+                this.colorSolid = '#7f7f9e'; 
+                this.borderColorSolid = '#aabbee'; 
+                this.passed = false;
+            }
+
+            update() {
+                this.blinkTimer++;
+                if (this.isSolid) {
+                    if (this.blinkTimer >= this.blinkDurationSolid) {
+                        this.isSolid = false;
+                        this.blinkTimer = 0;
+                    }
+                } else { 
+                    if (this.blinkTimer >= this.blinkDurationGap) {
+                        this.isSolid = true;
+                        this.blinkTimer = 0;
+                    }
+                }
+            }
+
+            draw(currentWorldOffsetX) {
+                const screenX = this.worldX - currentWorldOffsetX;
+                if (screenX + this.width < -50 || screenX > canvas.width + 50) return; 
+
+                if (this.isSolid) {
+                    ctx.fillStyle = this.colorSolid;
+                    ctx.fillRect(screenX, this.y, this.width, this.height);
+                    ctx.strokeStyle = this.borderColorSolid;
+                    ctx.lineWidth = 2; 
+                    ctx.strokeRect(screenX, this.y, this.width, this.height);
+                }
+            }
+        }
+
+        function initGame() {
+            gameOver = false;
+            score = 0;
+            worldOffsetX = 0;
+            updateScoreDisplay();
+            obstacles = [];
+            messageBox.style.display = 'none';
+            furthestObstacleWorldX = 0; 
+
+            player = new Player(
+                50, 
+                canvas.height - groundHeight - playerHeight,
+                playerWidth,
+                playerHeight,
+                playerCharacterColor
+            );
+            
+            let initialSpawnX = player.worldX + canvas.width * 0.2;
+            for(let i=0; i<3; i++) { 
+                spawnObstacle(initialSpawnX);
+                const lastObs = obstacles[obstacles.length-1];
+                initialSpawnX = lastObs.worldX + (lastObs.width || lastObs.radius*2) + minObstacleSpawnDistance + Math.random() * maxObstacleAdditionalDistance;
+            }
+            furthestObstacleWorldX = 0;
+            obstacles.forEach(obs => {
+                furthestObstacleWorldX = Math.max(furthestObstacleWorldX, obs.worldX + (obs.width || obs.radius * 2));
+            });
+
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            gameLoop();
+        }
+
+        function spawnObstacle(customWorldX) {
+            const spawnFromX = furthestObstacleWorldX > 0 ? furthestObstacleWorldX : player.worldX + canvas.width * 0.5; 
+            const spawnAtWorldX = customWorldX !== undefined ? customWorldX : spawnFromX + minObstacleSpawnDistance + Math.random() * maxObstacleAdditionalDistance;
+            
+            const rand = Math.random();
+            let newObstacle;
+
+            if (rand < 0.30) { 
+                newObstacle = new SpikeObstacle(spawnAtWorldX);
+            } else if (rand < 0.50) { 
+                newObstacle = new GapObstacle(spawnAtWorldX);
+            } else if (rand < 0.75) { 
+                newObstacle = new EaterObstacle(spawnAtWorldX + eaterRadius); 
+            } else { 
+                const platformWidth = blinkingGroundBaseWidth + Math.random() * blinkingGroundRandomWidth;
+                newObstacle = new BlinkingGroundPlatform(spawnAtWorldX, platformWidth);
+            }
+            obstacles.push(newObstacle);
+            furthestObstacleWorldX = Math.max(furthestObstacleWorldX, spawnAtWorldX + (newObstacle.width || newObstacle.radius * 2));
+        }
+        
+        function checkCollisions() {
+            for (let i = 0; i < obstacles.length; i++) {
+                const obs = obstacles[i];
+
+                if (obs.type === 'spike') {
+                    if (
+                        player.worldX < obs.worldX + obs.width &&
+                        player.worldX + player.width > obs.worldX &&
+                        player.y < obs.y + obs.height && 
+                        player.y + player.height > obs.y
+                    ) {
+                        triggerGameOver("Ouch! Hit a spike!");
+                        return;
+                    }
+                } else if (obs.type === 'gap' || (obs.type === 'blinkingGround' && !obs.isSolid)) {
+                    if (
+                        player.worldX + player.width * 0.8 > obs.worldX && 
+                        player.worldX + player.width * 0.2 < obs.worldX + obs.width && 
+                        player.y + player.height >= obs.y && 
+                        player.velocityY >= 0 
+                    ) {
+                         const playerCenterX = player.worldX + player.width / 2;
+                         if (playerCenterX > obs.worldX && playerCenterX < obs.worldX + obs.width) {
+                            triggerGameOver(obs.type === 'gap' ? "Fell into a chasm!" : "Fell through blinking ground!");
+                            return;
+                         }
+                    }
+                } else if (obs.type === 'eater') {
+                    let testX = obs.worldX; 
+                    let testY = obs.y;     
+
+                    if (obs.worldX < player.worldX) testX = player.worldX; 
+                    else if (obs.worldX > player.worldX + player.width) testX = player.worldX + player.width; 
+
+                    if (obs.y < player.y) testY = player.y; 
+                    else if (obs.y > player.y + player.height) testY = player.y + player.height; 
+
+                    const distX = obs.worldX - testX;
+                    const distY = obs.y - testY;
+                    const distanceSquared = (distX * distX) + (distY * distY);
+
+                    if (distanceSquared <= obs.radius * obs.radius) {
+                        triggerGameOver("Eaten by a hungry monster!");
+                        return;
+                    }
+                }
+            }
+        }
+
+        function triggerGameOver(reason) {
+            if (gameOver) return; 
+            gameOver = true;
+            player.velocityX = 0; 
+            cancelAnimationFrame(animationFrameId);
+            messageTitle.textContent = "Game Over!";
+            messageText.innerHTML = `${reason}<br>Your final score: ${score}`;
+            messageBox.style.display = 'flex';
+        }
+
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = `Score: ${score}`;
+        }
+
+        function drawBackground(currentWorldOffsetX) {
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height - groundHeight);
+            skyGradient.addColorStop(0, '#141e30'); 
+            skyGradient.addColorStop(0.7, '#243b55'); 
+            skyGradient.addColorStop(1, '#3a4e8c'); 
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height - groundHeight);
+
+            const moonRadius = Math.min(canvas.width, canvas.height) * 0.08;
+            const moonX = canvas.width * 0.85; 
+            const moonY = canvas.height * 0.20;
+            
+            ctx.fillStyle = '#f5f5f5'; 
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#f5f5f5';
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            ctx.fillStyle = 'rgba(200, 200, 200, 0.7)';
+            ctx.beginPath();
+            ctx.arc(moonX - moonRadius * 0.3, moonY - moonRadius * 0.2, moonRadius * 0.25, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(moonX + moonRadius * 0.4, moonY + moonRadius * 0.1, moonRadius * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(moonX + moonRadius * 0.1, moonY + moonRadius * 0.5, moonRadius * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            if (!window.stars) { 
+                window.stars = [];
+                for(let i=0; i<70; i++) { 
+                    window.stars.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * (canvas.height - groundHeight - moonRadius*2),
+                        r: Math.random() * 1.5
+                    });
+                }
+            }
+            window.stars.forEach(star => {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.r, 0, Math.PI*2);
+                ctx.fill();
+            });
+        }
+        
+        function drawDynamicGround(currentWorldOffsetX) {
+            ctx.fillStyle = groundColor; 
+            let lastGroundSegmentEndScreenX = 0; 
+
+            const effectiveGaps = obstacles.filter(obs => {
+                return obs.type === 'gap' || (obs.type === 'blinkingGround' && !obs.isSolid);
+            }).sort((a, b) => a.worldX - b.worldX); 
+
+            for (const gap of effectiveGaps) {
+                const gapStartScreenX = gap.worldX - currentWorldOffsetX;
+                const gapEndScreenX = gap.worldX + gap.width - currentWorldOffsetX;
+
+                if (gapStartScreenX > lastGroundSegmentEndScreenX) {
+                    ctx.fillRect(
+                        lastGroundSegmentEndScreenX, 
+                        canvas.height - groundHeight, 
+                        gapStartScreenX - lastGroundSegmentEndScreenX, 
+                        groundHeight
+                    );
+                }
+                lastGroundSegmentEndScreenX = Math.max(lastGroundSegmentEndScreenX, gapEndScreenX);
+            }
+
+            if (lastGroundSegmentEndScreenX < canvas.width) {
+                ctx.fillRect(
+                    lastGroundSegmentEndScreenX, 
+                    canvas.height - groundHeight, 
+                    canvas.width - lastGroundSegmentEndScreenX, 
+                    groundHeight
+                );
+            }
+        }
+
+        let animationFrameId;
+        function gameLoop() {
+            if (gameOver) return;
+
+            player.update();
+
+            const playerFollowPointX = canvas.width / 4;
+            worldOffsetX = player.worldX - playerFollowPointX;
+            if (worldOffsetX < 0) { 
+                worldOffsetX = 0;
+            }
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground(worldOffsetX); 
+            drawDynamicGround(worldOffsetX);
+            
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                if (obs.type === 'eater' || obs.type === 'blinkingGround') { 
+                    obs.update(); 
+                }
+                obs.draw(worldOffsetX); 
+
+                if (!obs.passed && obs.worldX + (obs.width || obs.radius * 2) < player.worldX) {
+                    if (obs.type !== 'gap') { 
+                       score += 10;
+                    }
+                    obs.passed = true; 
+                    updateScoreDisplay();
+                }
+
+                const cullMargin = canvas.width; 
+                if (obs.worldX - worldOffsetX + (obs.width || obs.radius * 2) < -cullMargin) {
+                    obstacles.splice(i, 1);
+                }
+            }
+            
+            if (worldOffsetX + canvas.width + spawnLookahead > furthestObstacleWorldX) {
+                 if (obstacles.length < 15) { 
+                    spawnObstacle(); 
+                 }
+            }
+
+            player.draw(worldOffsetX);
+            checkCollisions(); 
+            
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (gameOver && e.key.toLowerCase() !== 'enter') return; 
+            if (e.key.toLowerCase() === 'enter' && gameOver) {
+                 restartButton.click(); 
+                 return;
+            }
+            if (gameOver) return;
+
+            switch (e.key.toLowerCase()) {
+                case 'arrowleft': case 'a': player.velocityX = -playerSpeed; break;
+                case 'arrowright': case 'd': player.velocityX = playerSpeed; break;
+                case 'arrowup': case 'w': case ' ': player.jump(); break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (gameOver) return;
+            switch (e.key.toLowerCase()) {
+                case 'arrowleft': case 'a': if (player.velocityX < 0) player.velocityX = 0; break;
+                case 'arrowright': case 'd': if (player.velocityX > 0) player.velocityX = 0; break;
+            }
+        });
+
+        ['leftButton', 'rightButton', 'jumpButton'].forEach(id => {
+            const button = document.getElementById(id);
+            button.addEventListener('touchstart', (e) => {
+                e.preventDefault(); if(gameOver) return;
+                if (id === 'leftButton') player.velocityX = -playerSpeed;
+                else if (id === 'rightButton') player.velocityX = playerSpeed;
+                else if (id === 'jumpButton') player.jump();
+            }, { passive: false }); 
+            button.addEventListener('touchend', (e) => {
+                e.preventDefault(); if(gameOver) return;
+                if ((id === 'leftButton' && player.velocityX < 0) || (id === 'rightButton' && player.velocityX > 0)) {
+                    player.velocityX = 0;
+                }
+            }, { passive: false });
+            button.addEventListener('mousedown', () => {
+                if(gameOver) return;
+                if (id === 'leftButton') player.velocityX = -playerSpeed;
+                else if (id === 'rightButton') player.velocityX = playerSpeed;
+                else if (id === 'jumpButton') player.jump();
+            });
+            button.addEventListener('mouseup', () => {
+                if(gameOver) return;
+                 if ((id === 'leftButton' && player.velocityX < 0) || (id === 'rightButton' && player.velocityX > 0)) {
+                    player.velocityX = 0;
+                }
+            });
+        });
+        
+        restartButton.addEventListener('click', () => {
+            messageBox.style.display = 'none';
+            initGame(); 
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        
+        window.onload = function() {
+            resizeCanvas(); 
+            if (!player) { 
+                initGame();
+            }
+        };
+    </script>
+</body>
+</html>
