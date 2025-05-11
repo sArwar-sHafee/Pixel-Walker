@@ -2,10 +2,6 @@
 
 ## 🌌 Live Demo
 
-https://sarwar-shafee.github.io/Pixel-Walker/
-
----
-
 ![Live Demo](https://raw.githubusercontent.com/sArwar-sHafee/Pixel-Walker/main/demo.jpeg)
 
 ## 🎮 Game Description
@@ -64,7 +60,7 @@ Players will encounter several types of obstacles:
 * **Game Over & Restart:** Clear game over messages are displayed with the final score, and players can easily restart the game.
 * **Procedural Obstacle Generation:** Obstacles are spawned dynamically ahead of the player, ensuring a unique playthrough each time.
 
-## 🛠️ How to Run
+## 🛠️ How to Run Locally
 
 1.  Save the provided HTML code as an `.html` file (e.g., `pixel_walker.html`).
 2.  Open the HTML file in any modern web browser (like Chrome, Firefox, Safari, Edge).
@@ -73,3 +69,5 @@ Players will encounter several types of obstacles:
 ---
 
 Enjoy your Night Adventure!
+
+[Play Now](https://sarwar-shafee.github.io/Pixel-Walker/)
