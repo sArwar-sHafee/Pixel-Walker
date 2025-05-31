@@ -129,6 +129,24 @@
          #instructions p {
             margin: 5px 0;
         }
+
+        #asciiSoundBox {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 25px;
+            background-color: rgba(50, 50, 70, 0.85);
+            color: #00ff00;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 24px;
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+            z-index: 150;
+            display: none;
+            text-align: center;
+            box-shadow: 0 0 15px #00ff00;
+        }
     </style>
 </head>
 <body>
@@ -142,11 +160,12 @@
             <button id="restartButton">Restart Game</button>
         </div>
     </div>
+    <div id="asciiSoundBox"></div>
     <div id="controls">
         <button id="leftButton">Left</button>
         <button id="jumpButton">Jump</button>
         <button id="rightButton">Right</button>
-        <button id="muteButton">Mute</button> <!-- Added Mute Button -->
+        <!-- <button id="muteButton">Mute</button> --> <!-- Removed Mute Button -->
     </div>
     <div id="info">
         <p>Use Arrow Keys or On-Screen Buttons</p>
@@ -168,7 +187,14 @@
         const messageTitle = document.getElementById('messageTitle');
         const messageText = document.getElementById('messageText');
         const restartButton = document.getElementById('restartButton');
-        const muteButton = document.getElementById('muteButton'); // Mute button reference
+        // const muteButton = document.getElementById('muteButton'); // Mute button reference
+
+        // ASCII Art "Sound" messages
+        const JUMP_ASCII = "[ BOING! ]";
+        const GAME_OVER_ASCII = "[!!CRASH!!]";
+        const SCORE_ASCII = "[+10 PTS]";
+        // Reference to the new div
+        const asciiSoundBox = document.getElementById('asciiSoundBox');
 
         // Game variables
         let player;
@@ -176,13 +202,13 @@
         let score = 0;
         let gameOver = false;
         let worldOffsetX = 0; 
-        let isMuted = false; // Mute state variable
+        // let isMuted = false; // Mute state variable
 
         // Audio elements
-        const jumpSound = new Audio("path/to/jump.wav");
-        const gameOverSound = new Audio("path/to/game_over.wav");
-        const backgroundMusic = new Audio("path/to/background_music.mp3");
-        backgroundMusic.loop = true;
+        // const jumpSound = new Audio("path/to/jump.wav");
+        // const gameOverSound = new Audio("path/to/game_over.wav");
+        // const backgroundMusic = new Audio("path/to/background_music.mp3");
+        // backgroundMusic.loop = true;
 
         const gravity = 0.8;
         const jumpForce = 15;
@@ -545,7 +571,7 @@
             });
 
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            startBackgroundMusic(); // Start background music
+            // startBackgroundMusic(); // Start background music
             gameLoop();
         }
 
@@ -625,7 +651,7 @@
             player.velocityX = 0; 
             cancelAnimationFrame(animationFrameId);
             playGameOverSound(); // Play game over sound
-            stopBackgroundMusic(); // Stop background music
+            // stopBackgroundMusic(); // Stop background music
             messageTitle.textContent = "Game Over!";
             messageText.innerHTML = `${reason}<br>Your final score: ${score}`;
             messageBox.style.display = 'flex';
@@ -743,6 +769,7 @@
                 if (!obs.passed && obs.worldX + (obs.width || obs.radius * 2) < player.worldX) {
                     if (obs.type !== 'gap') { 
                        score += 10;
+                       playSound(SCORE_ASCII); // Play score sound
                     }
                     obs.passed = true; 
                     updateScoreDisplay();
@@ -766,73 +793,75 @@
             animationFrameId = requestAnimationFrame(gameLoop);
         }
 
-    // Audio functions
-    function playSound(soundElement) {
-        if (isMuted) return; // Check if muted
-        try {
-            soundElement.currentTime = 0;
-            soundElement.play();
-        } catch (error) {
-            console.error("Error playing sound:", error);
-        }
+    // ASCII "Sound" display function
+    function playSound(asciiString) {
+        if (!asciiSoundBox) return; // Safety check
+
+        asciiSoundBox.innerHTML = asciiString;
+        asciiSoundBox.style.display = 'block';
+
+        setTimeout(() => {
+            asciiSoundBox.style.display = 'none';
+            asciiSoundBox.innerHTML = ''; // Clear content
+        }, 700); // Display for 0.7 seconds
     }
 
     function playJumpSound() {
-        playSound(jumpSound);
+        playSound(JUMP_ASCII);
     }
 
     function playGameOverSound() {
-        playSound(gameOverSound);
+        playSound(GAME_OVER_ASCII);
     }
 
-    function startBackgroundMusic() {
-        if (isMuted) { // If muted, don't play, but ensure it's ready to play when unmuted
-            backgroundMusic.loop = true; // Ensure loop is set
-            return;
-        }
-        if (backgroundMusic.paused) {
-            playSound(backgroundMusic); // playSound already checks isMuted, but this is for clarity for background music
-        }
-    }
+    // function startBackgroundMusic() {
+    //     // if (isMuted) { // If muted, don't play, but ensure it's ready to play when unmuted
+    //     //     backgroundMusic.loop = true; // Ensure loop is set
+    //     //     return;
+    //     // }
+    //     // if (backgroundMusic.paused) {
+    //     //     playSound(backgroundMusic); // playSound already checks isMuted, but this is for clarity for background music
+    //     // }
+    // }
 
-    function stopBackgroundMusic() {
-        backgroundMusic.pause();
-        backgroundMusic.currentTime = 0;
-    }
+    // function stopBackgroundMusic() {
+    //     // backgroundMusic.pause();
+    //     // backgroundMusic.currentTime = 0;
+    // }
 
-    function toggleMute() {
-        isMuted = !isMuted;
-        muteButton.textContent = isMuted ? "Unmute" : "Mute";
-        if (isMuted) {
-            stopBackgroundMusic();
-            // Optional: set volume to 0 for all audio elements if needed
-            // jumpSound.volume = 0;
-            // gameOverSound.volume = 0;
-            // backgroundMusic.volume = 0; 
-        } else {
-            // jumpSound.volume = 1;
-            // gameOverSound.volume = 1;
-            // backgroundMusic.volume = 1;
-            startBackgroundMusic(); // Attempt to play background music
-        }
-    }
+    // function toggleMute() {
+    //     // isMuted = !isMuted;
+    //     // muteButton.textContent = isMuted ? "Unmute" : "Mute";
+    //     // if (isMuted) {
+    //     //     stopBackgroundMusic();
+    //     //     // Optional: set volume to 0 for all audio elements if needed
+    //     //     // jumpSound.volume = 0;
+    //     //     // gameOverSound.volume = 0;
+    //     //     // backgroundMusic.volume = 0;
+    //     // } else {
+    //     //     // jumpSound.volume = 1;
+    //     //     // gameOverSound.volume = 1;
+    //     //     // backgroundMusic.volume = 1;
+    //     //     startBackgroundMusic(); // Attempt to play background music
+    //     // }
+    // }
 
-    function initializeAudio() {
-        jumpSound.load();
-        gameOverSound.load();
-        backgroundMusic.load();
-        // Attempt to play a silent sound on user interaction might be added here later if needed.
-        // One way to encourage user interaction for audio autoplay:
-        // document.body.addEventListener('click', () => {
-        //     if (backgroundMusic.paused) {
-        //         // Optional: play a very short silent sound to "unlock" audio
-        //         // const silentSound = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
-        //         // silentSound.play().catch(e => console.error("Silent sound failed", e));
-        //         // Then try to play the actual music if it's supposed to be playing.
-        //         // This part might need to be tied to a specific game state, e.g. if music should start on first interaction.
-        //     }
-        // }, { once: true }); // { once: true } ensures this listener is removed after the first click.
-    }
+    // function initializeAudio() {
+    //     // jumpSound.load();
+    //     // gameOverSound.load();
+    //     // backgroundMusic.load();
+    //     // Attempt to play a silent sound on user interaction might be added here later if needed.
+    //     // One way to encourage user interaction for audio autoplay:
+    //     // document.body.addEventListener('click', () => {
+    //     //     if (backgroundMusic.paused) {
+    //     //         // Optional: play a very short silent sound to "unlock" audio
+    //     //         // const silentSound = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
+    //     //         // silentSound.play().catch(e => console.error("Silent sound failed", e));
+    //         //         // Then try to play the actual music if it's supposed to be playing.
+    //         //         // This part might need to be tied to a specific game state, e.g. if music should start on first interaction.
+    //     //     }
+    //     // }, { once: true }); // { once: true } ensures this listener is removed after the first click.
+    // }
 
         document.addEventListener('keydown', (e) => {
             if (gameOver && e.key.toLowerCase() !== 'enter') return; 
@@ -862,9 +891,9 @@
             button.addEventListener('touchstart', (e) => {
                 e.preventDefault(); if(gameOver) return;
                  // Try to start background music on first touch interaction if not already started
-                if (backgroundMusic.paused && backgroundMusic.currentTime === 0) { // Check if it hasn't played yet
-                    startBackgroundMusic();
-                }
+                // if (backgroundMusic.paused && backgroundMusic.currentTime === 0) { // Check if it hasn't played yet
+                //     startBackgroundMusic();
+                // }
                 if (id === 'leftButton') player.velocityX = -playerSpeed;
                 else if (id === 'rightButton') player.velocityX = playerSpeed;
                 else if (id === 'jumpButton') player.jump();
@@ -878,9 +907,9 @@
             button.addEventListener('mousedown', () => {
                 if(gameOver) return;
                 // Try to start background music on first click interaction if not already started
-                if (backgroundMusic.paused && backgroundMusic.currentTime === 0) { // Check if it hasn't played yet
-                     startBackgroundMusic();
-                }
+                // if (backgroundMusic.paused && backgroundMusic.currentTime === 0) { // Check if it hasn't played yet
+                //      startBackgroundMusic();
+                // }
                 if (id === 'leftButton') player.velocityX = -playerSpeed;
                 else if (id === 'rightButton') player.velocityX = playerSpeed;
                 else if (id === 'jumpButton') player.jump();
@@ -898,7 +927,7 @@
             initGame(); 
         });
 
-        muteButton.addEventListener('click', toggleMute); // Add event listener for mute button
+        // muteButton.addEventListener('click', toggleMute); // Add event listener for mute button
 
         window.addEventListener('resize', resizeCanvas);
         
@@ -909,7 +938,7 @@
                 // to ensure audio can be initiated by user gesture.
                 // initGame(); 
             }
-            initializeAudio(); // Initialize audio
+            // initializeAudio(); // Initialize audio
              // Display a message to click to start, to help with autoplay policies
             ctx.font = "16px 'Press Start 2P'";
             ctx.fillStyle = "white";
