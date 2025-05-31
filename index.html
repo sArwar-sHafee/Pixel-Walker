@@ -129,24 +129,6 @@
          #instructions p {
             margin: 5px 0;
         }
-
-        #asciiSoundBox {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            padding: 15px 25px;
-            background-color: rgba(50, 50, 70, 0.85);
-            color: #00ff00;
-            font-family: 'Press Start 2P', cursive;
-            font-size: 24px;
-            border: 2px solid #00ff00;
-            border-radius: 5px;
-            z-index: 150;
-            display: none;
-            text-align: center;
-            box-shadow: 0 0 15px #00ff00;
-        }
     </style>
 </head>
 <body>
@@ -160,12 +142,11 @@
             <button id="restartButton">Restart Game</button>
         </div>
     </div>
-    <div id="asciiSoundBox"></div>
     <div id="controls">
         <button id="leftButton">Left</button>
         <button id="jumpButton">Jump</button>
         <button id="rightButton">Right</button>
-        <!-- <button id="muteButton">Mute</button> --> <!-- Removed Mute Button -->
+        <button id="muteButton">Mute</button>
     </div>
     <div id="info">
         <p>Use Arrow Keys or On-Screen Buttons</p>
@@ -190,11 +171,16 @@
         // const muteButton = document.getElementById('muteButton'); // Mute button reference
 
         // ASCII Art "Sound" messages
-        const JUMP_ASCII = "[ BOING! ]";
-        const GAME_OVER_ASCII = "[!!CRASH!!]";
-        const SCORE_ASCII = "[+10 PTS]";
+        // const JUMP_ASCII = "[ BOING! ]";
+        // const GAME_OVER_ASCII = "[!!CRASH!!]";
+        // const SCORE_ASCII = "[+10 PTS]";
         // Reference to the new div
-        const asciiSoundBox = document.getElementById('asciiSoundBox');
+        // const asciiSoundBox = document.getElementById('asciiSoundBox');
+
+        let audioCtx; // Will hold the AudioContext
+        let isAudioContextInitialized = false; // Flag to track initialization
+        let isMuted = false;
+        let muteButton;
 
         // Game variables
         let player;
@@ -769,7 +755,7 @@
                 if (!obs.passed && obs.worldX + (obs.width || obs.radius * 2) < player.worldX) {
                     if (obs.type !== 'gap') { 
                        score += 10;
-                       playSound(SCORE_ASCII); // Play score sound
+                       playScoreSound(); // Play score sound
                     }
                     obs.passed = true; 
                     updateScoreDisplay();
@@ -794,24 +780,61 @@
         }
 
     // ASCII "Sound" display function
-    function playSound(asciiString) {
-        if (!asciiSoundBox) return; // Safety check
-
-        asciiSoundBox.innerHTML = asciiString;
-        asciiSoundBox.style.display = 'block';
-
-        setTimeout(() => {
-            asciiSoundBox.style.display = 'none';
-            asciiSoundBox.innerHTML = ''; // Clear content
-        }, 700); // Display for 0.7 seconds
-    }
+    // function playSound(asciiString) {
+    //     if (!asciiSoundBox) return; // Safety check
+    //
+    //     asciiSoundBox.innerHTML = asciiString;
+    //     asciiSoundBox.style.display = 'block';
+    //
+    //     setTimeout(() => {
+    //         asciiSoundBox.style.display = 'none';
+    //         asciiSoundBox.innerHTML = ''; // Clear content
+    //     }, 700); // Display for 0.7 seconds
+    // }
 
     function playJumpSound() {
-        playSound(JUMP_ASCII);
+        // Web Audio jump sound
+        if (typeof playWebAudioSound === 'function') {
+            playWebAudioSound({
+                type: 'triangle', // Triangle or sine wave often works well for jumps
+                frequency: 600,   // Higher pitch
+                frequencyEnd: 880, // Optional: slight upward sweep
+                duration: 0.15,    // Short duration
+                volume: 0.25,
+                attackTime: 0.01,
+                holdTime: 0.02,
+                releaseTime: 0.12
+            });
+        }
     }
 
     function playGameOverSound() {
-        playSound(GAME_OVER_ASCII);
+        // Web Audio game over sound
+        if (typeof playWebAudioSound === 'function') {
+            playWebAudioSound({
+                type: 'noise',    // Noise for a crash/explosion effect
+                duration: 0.5,    // Longer duration
+                volume: 0.3,
+                attackTime: 0.01,
+                holdTime: 0.2,
+                releaseTime: 0.29
+            });
+        }
+    }
+
+    function playScoreSound() {
+        // Web Audio score sound
+        if (typeof playWebAudioSound === 'function') {
+            playWebAudioSound({
+                type: 'sine',
+                frequency: 523.25, // C5 note
+                duration: 0.12,    // Very short
+                volume: 0.2,
+                attackTime: 0.01,
+                holdTime: 0.01,
+                releaseTime: 0.1
+            });
+        }
     }
 
     // function startBackgroundMusic() {
@@ -863,6 +886,134 @@
     //     // }, { once: true }); // { once: true } ensures this listener is removed after the first click.
     // }
 
+    function toggleMute() {
+        if (!audioCtx) return; // AudioContext not ready
+
+        isMuted = !isMuted;
+        if (isMuted) {
+            audioCtx.suspend().then(() => {
+                console.log("AudioContext suspended (muted).");
+                if(muteButton) muteButton.textContent = "Unmute";
+            }).catch(e => console.error("Error suspending AudioContext:", e));
+        } else {
+            audioCtx.resume().then(() => {
+                console.log("AudioContext resumed (unmuted).");
+                if(muteButton) muteButton.textContent = "Mute";
+                // Optional: Play a small sound to indicate unmuting
+                playWebAudioSound({ type: 'sine', frequency: 440, duration: 0.05, volume: 0.1});
+            }).catch(e => console.error("Error resuming AudioContext:", e));
+        }
+    }
+
+    function initAudioContext() {
+        if (isAudioContextInitialized) return;
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            isAudioContextInitialized = true;
+            console.log("AudioContext initialized.");
+        } catch (e) {
+            console.error("Web Audio API is not supported in this browser.", e);
+            // Potentially display a message to the user that audio won't work
+        }
+    }
+
+function playWebAudioSound(params = {}) {
+    if (isMuted) {
+        // console.log("Sound muted via isMuted flag.");
+        return;
+    }
+    if (!audioCtx || !isAudioContextInitialized || audioCtx.state === 'suspended') {
+        // console.warn("AudioContext not ready or suspended, or no user interaction yet.");
+        return;
+    }
+
+    const {
+        type = 'sine',          // 'sine', 'square', 'sawtooth', 'triangle', or 'noise'
+        frequency = 440,      // For oscillators (Hz)
+        frequencyEnd,         // For frequency sweeps (Hz)
+        duration = 0.2,       // This is the TARGET total duration. Envelope times should fit.
+        volume = 0.3,         // Peak volume (0.0 to 1.0)
+        attackTime = 0.01,    // Time to reach peak volume (seconds)
+        holdTime = 0.05,      // Time to hold at peak volume (seconds)
+        releaseTime = 0.1,    // Time to fade out from peak/hold (seconds)
+        pan = 0               // Stereo panning (-1 left, 0 center, 1 right)
+    } = params;
+
+    const now = audioCtx.currentTime;
+
+    // Fit envelope times within the target duration.
+    let effectiveAttackTime = Math.min(attackTime, duration);
+    let remainingDuration = duration - effectiveAttackTime;
+
+    let effectiveHoldTime = Math.min(holdTime, Math.max(0, remainingDuration));
+    remainingDuration -= effectiveHoldTime;
+
+    let effectiveReleaseTime = Math.min(releaseTime, Math.max(0, remainingDuration));
+
+    if (duration > effectiveAttackTime + effectiveHoldTime + effectiveReleaseTime) {
+        let extraTime = duration - (effectiveAttackTime + effectiveHoldTime + effectiveReleaseTime);
+        if (releaseTime > 0.001 && effectiveReleaseTime > 0) {
+            effectiveReleaseTime += extraTime;
+        } else if (holdTime > 0.001 && effectiveHoldTime > 0) {
+            effectiveHoldTime += extraTime;
+        } else if (attackTime > 0.001 && effectiveAttackTime > 0) {
+            effectiveAttackTime += extraTime;
+        } else {
+            effectiveReleaseTime += extraTime;
+        }
+    }
+
+    if (duration > (effectiveAttackTime + effectiveHoldTime) && effectiveReleaseTime < 0.001) {
+        effectiveReleaseTime = Math.max(0.001, duration - (effectiveAttackTime + effectiveHoldTime));
+    }
+
+    const soundTotalDuration = effectiveAttackTime + effectiveHoldTime + effectiveReleaseTime;
+    if (soundTotalDuration <= 0.001) return;
+
+    const gainNode = audioCtx.createGain();
+
+    if (pan !== 0 && audioCtx.createStereoPanner) {
+        const pannerNode = audioCtx.createStereoPanner();
+        pannerNode.pan.setValueAtTime(pan, now);
+        gainNode.connect(pannerNode);
+        pannerNode.connect(audioCtx.destination);
+    } else {
+        gainNode.connect(audioCtx.destination);
+    }
+
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(volume, now + effectiveAttackTime);
+
+    gainNode.gain.setValueAtTime(volume, now + effectiveAttackTime + effectiveHoldTime);
+    gainNode.gain.linearRampToValueAtTime(0, now + soundTotalDuration);
+
+    if (type === 'noise') {
+        const bufferSize = Math.ceil(audioCtx.sampleRate * soundTotalDuration);
+        if (bufferSize <= 0) return;
+
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const output = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            output[i] = (Math.random() * 2 - 1) * 0.6;
+        }
+        const noiseSource = audioCtx.createBufferSource();
+        noiseSource.buffer = buffer;
+        noiseSource.connect(gainNode);
+        noiseSource.start(now);
+        noiseSource.stop(now + soundTotalDuration);
+    } else {
+        const oscillator = audioCtx.createOscillator();
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, now);
+        if (frequencyEnd) {
+            oscillator.frequency.linearRampToValueAtTime(frequencyEnd, now + effectiveAttackTime + effectiveHoldTime);
+        }
+        oscillator.connect(gainNode);
+        oscillator.start(now);
+        oscillator.stop(now + soundTotalDuration);
+    }
+}
+
         document.addEventListener('keydown', (e) => {
             if (gameOver && e.key.toLowerCase() !== 'enter') return; 
             if (e.key.toLowerCase() === 'enter' && gameOver) {
@@ -890,6 +1041,7 @@
             const button = document.getElementById(id);
             button.addEventListener('touchstart', (e) => {
                 e.preventDefault(); if(gameOver) return;
+                initAudioContext(); // Initialize or resume AudioContext
                  // Try to start background music on first touch interaction if not already started
                 // if (backgroundMusic.paused && backgroundMusic.currentTime === 0) { // Check if it hasn't played yet
                 //     startBackgroundMusic();
@@ -905,6 +1057,7 @@
                 }
             }, { passive: false });
             button.addEventListener('mousedown', () => {
+                initAudioContext(); // Initialize or resume AudioContext
                 if(gameOver) return;
                 // Try to start background music on first click interaction if not already started
                 // if (backgroundMusic.paused && backgroundMusic.currentTime === 0) { // Check if it hasn't played yet
@@ -932,7 +1085,12 @@
         window.addEventListener('resize', resizeCanvas);
         
         window.onload = function() {
-            resizeCanvas(); 
+            resizeCanvas();
+            muteButton = document.getElementById('muteButton');
+            if (muteButton) {
+                muteButton.addEventListener('click', toggleMute);
+            }
+
             if (!player) { 
                 // Don't call initGame() here directly, let the first user interaction (or resize potentially) handle it
                 // to ensure audio can be initiated by user gesture.
@@ -946,6 +1104,7 @@
             ctx.fillText("Click or Press Key to Start", canvas.width / 2, canvas.height / 2);
 
             const startListener = () => {
+                initAudioContext(); // Initialize or resume AudioContext
                 if (!player) { // Ensure initGame is called only once
                     initGame();
                 }
